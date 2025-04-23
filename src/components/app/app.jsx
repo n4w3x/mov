@@ -69,14 +69,8 @@ function App() {
   } = state
 
   const tabs = [
-    {
-      key: "search",
-      label: "Search",
-    },
-    {
-      key: "rated",
-      label: "Rated",
-    },
+    { key: "search", label: "Search" },
+    { key: "rated", label: "Rated" },
   ]
 
   useEffect(() => {
@@ -85,7 +79,7 @@ function App() {
         const genreList = await api.getGenreList()
         dispatch({ type: "SET_GENRES", payload: genreList })
       } catch (error) {
-        console.log("Ошибка в получении жанров:", error.message)
+        alert(`Ошибка в получении жанров: ${error.message}`)
       }
     }
 
@@ -94,7 +88,7 @@ function App() {
         const sessionId = await api.createGuestSession()
         dispatch({ type: "SET_GUEST_SESSION", payload: sessionId })
       } catch (error) {
-        console.log("Ошибка при создании гостевой сессии:", error.message)
+        alert(`Ошибка при создании гостевой сессии: ${error.message}`)
       }
     }
 
@@ -102,58 +96,65 @@ function App() {
     createGuestSession()
   }, [])
 
-  const loadMovies = async (term, page) => {
-    try {
-      dispatch({ type: "SET_LOADING", payload: true })
-      const movieResults = term
-        ? await api.getByKeyword(term, page)
-        : await api.getTranding(page)
+  useEffect(() => {
+    const loadMovies = async () => {
+      try {
+        dispatch({ type: "SET_LOADING", payload: true })
+        const trimmedTerm = searchTerm.trim()
+        const movieResults = trimmedTerm
+          ? await api.getByKeyword(trimmedTerm, currentPage)
+          : await api.getTranding(currentPage)
 
-      dispatch({
-        type: "SET_MOVIES",
-        payload: {
-          movies: movieResults.results,
-          totalResults: movieResults.total_results,
-          currentPage: page,
-        },
-      })
-    } catch (error) {
-      dispatch({ type: "SET_ALERT", payload: true })
+        dispatch({
+          type: "SET_MOVIES",
+          payload: {
+            movies: movieResults.results,
+            totalResults: movieResults.total_results,
+            currentPage,
+          },
+        })
+      } catch (error) {
+        dispatch({ type: "SET_ALERT", payload: true })
+      }
     }
-  }
 
-  const debouncedSearch = useCallback(
-    debounce((term, page) => {
-      loadMovies(term, page)
-    }, 400),
+    loadMovies()
+  }, [searchTerm, currentPage])
+
+  const debouncedInput = useCallback(
+    debounce((value) => {
+      dispatch({ type: "SET_SEARCH_TERM", payload: value })
+      dispatch({ type: "SET_PAGE", payload: 1 })
+    }, 500),
     []
   )
 
-  const handleSearch = (value) => {
+  const handleInputChange = (e) => {
+    debouncedInput(e.target.value)
+  }
+
+  const handlePressEnter = (e) => {
+    debouncedInput.cancel()
+    const value = e.target.value
     dispatch({ type: "SET_SEARCH_TERM", payload: value })
-    debouncedSearch(value, currentPage)
+    dispatch({ type: "SET_PAGE", payload: 1 })
   }
 
   const handlePageChange = (page) => {
     dispatch({ type: "SET_PAGE", payload: page })
-    loadMovies(searchTerm, page)
   }
 
   const handleRatingChange = ({ movieId, rating }) => {
     try {
       api.setMovieRate(movieId, guestSessionId, rating)
     } catch (error) {
-      console.log("Ошибка при установке рейтинга фильма:", error.message)
+      alert(`Ошибка при установке рейтинга фильма: ${error.message}`)
     }
   }
 
   const onTabClick = (key) => {
     dispatch({ type: "SET_ACTIVE_TAB", payload: key })
   }
-
-  useEffect(() => {
-    loadMovies(searchTerm, currentPage)
-  }, [currentPage, searchTerm])
 
   return (
     <GenresProvider genres={genres}>
@@ -172,14 +173,9 @@ function App() {
                 <Input
                   className="search-panel"
                   placeholder="Введите название..."
-                  onPressEnter={(e) => handleSearch(e.target.value)}
-                  onChange={(e) =>
-                    dispatch({
-                      type: "SET_SEARCH_TERM",
-                      payload: e.target.value,
-                    })
-                  }
-                  value={searchTerm}
+                  onPressEnter={handlePressEnter}
+                  onChange={handleInputChange}
+                  defaultValue={searchTerm}
                 />
                 {movies.length > 0 ? (
                   <MovieList
@@ -190,7 +186,7 @@ function App() {
                 ) : (
                   showAlert && (
                     <Alert
-                      message="Ошибка загруки фильмов"
+                      message="Ошибка загрузки фильмов"
                       description="Пожалуйста, включите VPN, чтобы они появились в этом разделе."
                       type="info"
                       showIcon

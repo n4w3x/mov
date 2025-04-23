@@ -18,10 +18,10 @@ function RatedItem({ guestSessionId }) {
         const ratedMoviesResult = await api.getRatedMovies(guestSessionId)
         setRatedMovies(ratedMoviesResult.results)
       } else {
-        console.log("Гостевая сессия отсутствует.")
+        alert("Гостевая сессия отсутствует.")
       }
     } catch (error) {
-      console.log("Ошибка при получении оцененных фильмов:", error.message)
+      alert(`Ошибка при получении оцененных фильмов: ${error.message}`)
     } finally {
       setLoading(false)
     }
@@ -39,7 +39,7 @@ function RatedItem({ guestSessionId }) {
       await new Promise((resolve) => setTimeout(resolve, 1000))
       await fetchRatedMovies()
     } catch (err) {
-      console.error("Ошибка при оценке фильма:", err)
+      alert(`Ошибка при оценке фильма: ${err}`)
       setLoading(false)
     }
   }
